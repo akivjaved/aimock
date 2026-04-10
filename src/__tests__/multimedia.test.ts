@@ -216,6 +216,67 @@ describe("video generation", () => {
   });
 });
 
+describe("convenience methods", () => {
+  test("onImage creates fixture with correct endpoint", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.onImage("sunset", { image: { url: "sunset.png" } });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/images/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+      body: JSON.stringify({ prompt: "sunset" }),
+    });
+    expect((await res.json()).data[0].url).toBe("sunset.png");
+    await mock.stop();
+  });
+
+  test("onSpeech creates fixture with correct endpoint", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.onSpeech("hello", { audio: "AAAA", format: "mp3" });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/audio/speech`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+      body: JSON.stringify({ input: "hello", model: "tts-1", voice: "alloy" }),
+    });
+    expect(res.headers.get("content-type")).toBe("audio/mpeg");
+    await mock.stop();
+  });
+
+  test("onTranscription creates fixture with correct endpoint", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.onTranscription({ transcription: { text: "hello world" } });
+    await mock.start();
+
+    const formData = new FormData();
+    formData.append("file", new Blob(["audio"]), "test.wav");
+    formData.append("model", "whisper-1");
+    const res = await fetch(`${mock.url}/v1/audio/transcriptions`, {
+      method: "POST",
+      headers: { Authorization: "Bearer t" },
+      body: formData,
+    });
+    expect((await res.json()).text).toBe("hello world");
+    await mock.stop();
+  });
+
+  test("onVideo creates fixture with correct endpoint", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.onVideo("dancing", { video: { id: "v1", status: "completed", url: "dance.mp4" } });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/videos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+      body: JSON.stringify({ prompt: "dancing" }),
+    });
+    expect((await res.json()).id).toBe("v1");
+    await mock.stop();
+  });
+});
+
 describe("text-to-speech", () => {
   test("TTS returns audio bytes with correct content-type", async () => {
     const mock = new LLMock({ port: 0 });
