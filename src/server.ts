@@ -34,6 +34,7 @@ import { handleBedrock, handleBedrockStream } from "./bedrock.js";
 import { handleConverse, handleConverseStream } from "./bedrock-converse.js";
 import { handleEmbeddings } from "./embeddings.js";
 import { handleImages } from "./images.js";
+import { handleSpeech } from "./speech.js";
 import { handleOllama, handleOllamaGenerate } from "./ollama.js";
 import { handleCohere } from "./cohere.js";
 import { handleSearch, type SearchFixture } from "./search.js";
@@ -67,6 +68,7 @@ const SEARCH_PATH = "/search";
 const RERANK_PATH = "/v2/rerank";
 const MODERATIONS_PATH = "/v1/moderations";
 const IMAGES_PATH = "/v1/images/generations";
+const SPEECH_PATH = "/v1/audio/speech";
 const GEMINI_PREDICT_RE = /^\/v1beta\/models\/([^:]+):predict$/;
 const DEFAULT_CHUNK_SIZE = 20;
 
@@ -955,6 +957,25 @@ export async function createServer(
     if (pathname === IMAGES_PATH && req.method === "POST") {
       readBody(req)
         .then((raw) => handleImages(req, res, raw, fixtures, journal, defaults, setCorsHeaders))
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Internal error";
+          if (!res.headersSent) {
+            writeErrorResponse(
+              res,
+              500,
+              JSON.stringify({ error: { message: msg, type: "server_error" } }),
+            );
+          } else if (!res.writableEnded) {
+            res.destroy();
+          }
+        });
+      return;
+    }
+
+    // POST /v1/audio/speech — OpenAI TTS API
+    if (pathname === SPEECH_PATH && req.method === "POST") {
+      readBody(req)
+        .then((raw) => handleSpeech(req, res, raw, fixtures, journal, defaults, setCorsHeaders))
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : "Internal error";
           if (!res.headersSent) {

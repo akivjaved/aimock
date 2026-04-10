@@ -85,3 +85,59 @@ describe("image generation", () => {
     await mock.stop();
   });
 });
+
+describe("text-to-speech", () => {
+  test("TTS returns audio bytes with correct content-type", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "hello world", endpoint: "speech" },
+      response: { audio: "AAAA", format: "mp3" },
+    });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/audio/speech`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer test" },
+      body: JSON.stringify({ model: "tts-1", input: "hello world", voice: "alloy" }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("audio/mpeg");
+    const buffer = await res.arrayBuffer();
+    expect(buffer.byteLength).toBeGreaterThan(0);
+    await mock.stop();
+  });
+
+  test("TTS respects format for content-type", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "test", endpoint: "speech" },
+      response: { audio: "AAAA", format: "opus" },
+    });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/audio/speech`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer test" },
+      body: JSON.stringify({ model: "tts-1", input: "test", voice: "alloy" }),
+    });
+    expect(res.headers.get("content-type")).toBe("audio/opus");
+    await mock.stop();
+  });
+
+  test("TTS defaults to mp3 when no format specified", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "default", endpoint: "speech" },
+      response: { audio: "AAAA" },
+    });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/audio/speech`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer test" },
+      body: JSON.stringify({ model: "tts-1", input: "default", voice: "alloy" }),
+    });
+    expect(res.headers.get("content-type")).toBe("audio/mpeg");
+    await mock.stop();
+  });
+});
