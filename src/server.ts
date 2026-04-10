@@ -36,6 +36,7 @@ import { handleEmbeddings } from "./embeddings.js";
 import { handleImages } from "./images.js";
 import { handleSpeech } from "./speech.js";
 import { handleTranscription } from "./transcription.js";
+import { handleVideoCreate, handleVideoStatus, type VideoStateMap } from "./video.js";
 import { handleOllama, handleOllamaGenerate } from "./ollama.js";
 import { handleCohere } from "./cohere.js";
 import { handleSearch, type SearchFixture } from "./search.js";
@@ -71,6 +72,8 @@ const MODERATIONS_PATH = "/v1/moderations";
 const IMAGES_PATH = "/v1/images/generations";
 const SPEECH_PATH = "/v1/audio/speech";
 const TRANSCRIPTIONS_PATH = "/v1/audio/transcriptions";
+const VIDEOS_PATH = "/v1/videos";
+const VIDEOS_STATUS_RE = /^\/v1\/videos\/([^/]+)$/;
 const GEMINI_PREDICT_RE = /^\/v1beta\/models\/([^:]+):predict$/;
 const DEFAULT_CHUNK_SIZE = 20;
 
@@ -147,6 +150,7 @@ async function handleControlAPI(
   pathname: string,
   fixtures: Fixture[],
   journal: Journal,
+  videoStates: VideoStateMap,
 ): Promise<boolean> {
   if (!pathname.startsWith(CONTROL_PREFIX)) return false;
 
@@ -220,6 +224,7 @@ async function handleControlAPI(
   if (subPath === "/reset" && req.method === "POST") {
     fixtures.length = 0;
     journal.clear();
+    videoStates.clear();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ reset: true }));
     return true;
@@ -640,6 +645,7 @@ export async function createServer(
   }
 
   const journal = new Journal();
+  const videoStates: VideoStateMap = new Map();
 
   // Share journal and metrics registry with mounted services
   if (mounts) {
@@ -710,7 +716,7 @@ export async function createServer(
 
     // Control API — must be checked before mounts and path rewrites
     if (pathname.startsWith(CONTROL_PREFIX)) {
-      await handleControlAPI(req, res, pathname, fixtures, journal);
+      await handleControlAPI(req, res, pathname, fixtures, journal, videoStates);
       return;
     }
 
@@ -1011,6 +1017,44 @@ export async function createServer(
             res.destroy();
           }
         });
+      return;
+    }
+
+    // POST /v1/videos — Video Generation API
+    if (pathname === VIDEOS_PATH && req.method === "POST") {
+      readBody(req)
+        .then((raw) =>
+          handleVideoCreate(
+            req,
+            res,
+            raw,
+            fixtures,
+            journal,
+            defaults,
+            setCorsHeaders,
+            videoStates,
+          ),
+        )
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Internal error";
+          if (!res.headersSent) {
+            writeErrorResponse(
+              res,
+              500,
+              JSON.stringify({ error: { message: msg, type: "server_error" } }),
+            );
+          } else if (!res.writableEnded) {
+            res.destroy();
+          }
+        });
+      return;
+    }
+
+    // GET /v1/videos/{id} — Video Status Check
+    const videoStatusMatch = pathname.match(VIDEOS_STATUS_RE);
+    if (videoStatusMatch && req.method === "GET") {
+      const videoId = videoStatusMatch[1];
+      handleVideoStatus(req, res, videoId, journal, setCorsHeaders, videoStates);
       return;
     }
 

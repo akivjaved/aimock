@@ -144,6 +144,78 @@ describe("audio transcription", () => {
   });
 });
 
+describe("video generation", () => {
+  test("video creation and status check", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "a guitar", endpoint: "video" },
+      response: {
+        video: { id: "vid_123", status: "completed", url: "https://example.com/video.mp4" },
+      },
+    });
+    await mock.start();
+
+    // Create
+    const create = await fetch(`${mock.url}/v1/videos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer test" },
+      body: JSON.stringify({ model: "sora-2", prompt: "a guitar" }),
+    });
+    const job = await create.json();
+    expect(job.id).toBe("vid_123");
+    expect(job.status).toBe("completed");
+
+    // Status check
+    const status = await fetch(`${mock.url}/v1/videos/vid_123`, {
+      headers: { Authorization: "Bearer test" },
+    });
+    const result = await status.json();
+    expect(result.status).toBe("completed");
+    expect(result.url).toBe("https://example.com/video.mp4");
+    await mock.stop();
+  });
+
+  test("video processing returns minimal response then status on GET", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "slow motion", endpoint: "video" },
+      response: {
+        video: { id: "vid_456", status: "processing", url: "https://example.com/slow.mp4" },
+      },
+    });
+    await mock.start();
+
+    const create = await fetch(`${mock.url}/v1/videos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer test" },
+      body: JSON.stringify({ model: "sora-2", prompt: "slow motion" }),
+    });
+    const job = await create.json();
+    expect(job.id).toBe("vid_456");
+    expect(job.status).toBe("processing");
+    expect(job.url).toBeUndefined();
+
+    const status = await fetch(`${mock.url}/v1/videos/vid_456`, {
+      headers: { Authorization: "Bearer test" },
+    });
+    const result = await status.json();
+    expect(result.id).toBe("vid_456");
+    expect(result.status).toBe("processing");
+    await mock.stop();
+  });
+
+  test("video status 404 for unknown id", async () => {
+    const mock = new LLMock({ port: 0 });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/videos/unknown`, {
+      headers: { Authorization: "Bearer test" },
+    });
+    expect(res.status).toBe(404);
+    await mock.stop();
+  });
+});
+
 describe("text-to-speech", () => {
   test("TTS returns audio bytes with correct content-type", async () => {
     const mock = new LLMock({ port: 0 });
