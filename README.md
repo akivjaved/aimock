@@ -2,7 +2,7 @@
 
 https://github.com/user-attachments/assets/646bf106-0320-41f2-a9b1-5090454830f3
 
-Mock infrastructure for AI application testing — LLM APIs, MCP tools, A2A agents, vector databases, search, rerank, and moderation. One package, one port, zero dependencies.
+Mock infrastructure for AI application testing — LLM APIs, MCP tools, A2A agents, AG-UI event streams, vector databases, search, rerank, and moderation. One package, one port, zero dependencies.
 
 ## Quick Start
 
@@ -33,6 +33,7 @@ aimock mocks everything your AI app talks to:
 | **LLMock**     | OpenAI, Claude, Gemini, Bedrock, Azure, Vertex AI, Ollama, Cohere | [Providers](https://aimock.copilotkit.dev/docs)     |
 | **MCPMock**    | MCP tools, resources, prompts with session management             | [MCP](https://aimock.copilotkit.dev/mcp-mock)       |
 | **A2AMock**    | Agent-to-agent protocol with SSE streaming                        | [A2A](https://aimock.copilotkit.dev/a2a-mock)       |
+| **AGUIMock**   | AG-UI agent-to-UI event streams for frontend testing              | [AG-UI](https://aimock.copilotkit.dev/agui-mock)    |
 | **VectorMock** | Pinecone, Qdrant, ChromaDB compatible endpoints                   | [Vector](https://aimock.copilotkit.dev/vector-mock) |
 | **Services**   | Tavily search, Cohere rerank, OpenAI moderation                   | [Services](https://aimock.copilotkit.dev/services)  |
 
@@ -42,7 +43,7 @@ Run them all on one port with `npx aimock --config aimock.json`, or use the prog
 
 - **[Record & Replay](https://aimock.copilotkit.dev/record-replay)** — Proxy real APIs, save as fixtures, replay deterministically forever
 - **[11 LLM Providers](https://aimock.copilotkit.dev/docs)** — OpenAI, Claude, Gemini, Bedrock, Azure, Vertex AI, Ollama, Cohere — full streaming support
-- **[MCP / A2A / Vector](https://aimock.copilotkit.dev/mcp-mock)** — Mock every protocol your AI agents use
+- **[MCP / A2A / AG-UI / Vector](https://aimock.copilotkit.dev/mcp-mock)** — Mock every protocol your AI agents use
 - **[Chaos Testing](https://aimock.copilotkit.dev/chaos-testing)** — 500 errors, malformed JSON, mid-stream disconnects at any probability
 - **[Drift Detection](https://aimock.copilotkit.dev/drift-detection)** — Daily CI validation against real APIs
 - **[Streaming Physics](https://aimock.copilotkit.dev/streaming-physics)** — Configurable `ttft`, `tps`, and `jitter`

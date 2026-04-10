@@ -397,6 +397,7 @@ export function patchBumpVersion(): string {
   const pkgPath = resolve("package.json");
   const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
     version: string;
+    description?: string;
     [key: string]: unknown;
   };
   const parts = pkg.version.split(".").map(Number);
@@ -406,8 +407,43 @@ export function patchBumpVersion(): string {
   parts[2] += 1;
   const newVersion = parts.join(".");
   pkg.version = newVersion;
+
+  // Sync description with README subtitle
+  syncDescriptionFromReadme(pkg);
+
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
   return newVersion;
+}
+
+/** Keep package.json description in sync with the README subtitle. */
+function syncDescriptionFromReadme(pkg: { description?: string; [key: string]: unknown }): void {
+  const readmePath = resolve("README.md");
+  try {
+    const readme = readFileSync(readmePath, "utf-8");
+    // The description is the first non-empty, non-heading, non-badge, non-video line
+    const lines = readme.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (
+        !trimmed ||
+        trimmed.startsWith("#") ||
+        trimmed.startsWith("[") ||
+        trimmed.startsWith("http") ||
+        trimmed.startsWith("![") ||
+        trimmed.startsWith("[![")
+      ) {
+        continue;
+      }
+      // Found the subtitle — strip markdown formatting
+      const clean = trimmed.replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
+      if (clean && clean !== pkg.description) {
+        pkg.description = clean;
+      }
+      break;
+    }
+  } catch {
+    // README not found — skip
+  }
 }
 
 export function addChangelogEntry(report: DriftReport, version: string): void {
