@@ -70,6 +70,7 @@ export interface FixtureMatch {
   predicate?: (req: ChatCompletionRequest) => boolean;
   /** Which occurrence of this match to respond to (0-indexed). Undefined means match any. */
   sequenceIndex?: number;
+  endpoint?: "chat" | "image" | "speech" | "transcription" | "video" | "embedding";
 }
 
 // Fixture response types
@@ -111,12 +112,50 @@ export interface EmbeddingResponse {
   embedding: number[];
 }
 
+export interface ImageItem {
+  url?: string;
+  b64Json?: string;
+  revisedPrompt?: string;
+}
+
+export interface ImageResponse {
+  image?: ImageItem;
+  images?: ImageItem[];
+}
+
+export interface AudioResponse {
+  audio: string;
+  format?: string;
+}
+
+export interface TranscriptionResponse {
+  transcription: {
+    text: string;
+    language?: string;
+    duration?: number;
+    words?: Array<{ word: string; start: number; end: number }>;
+    segments?: Array<{ id: number; text: string; start: number; end: number }>;
+  };
+}
+
+export interface VideoResponse {
+  video: {
+    id: string;
+    status: "processing" | "completed" | "failed";
+    url?: string;
+  };
+}
+
 export type FixtureResponse =
   | TextResponse
   | ToolCallResponse
   | ContentWithToolCallsResponse
   | ErrorResponse
-  | EmbeddingResponse;
+  | EmbeddingResponse
+  | ImageResponse
+  | AudioResponse
+  | TranscriptionResponse
+  | VideoResponse;
 
 // Streaming physics
 
@@ -165,6 +204,7 @@ export interface FixtureFileEntry {
     model?: string;
     responseFormat?: string;
     sequenceIndex?: number;
+    endpoint?: "chat" | "image" | "speech" | "transcription" | "video" | "embedding";
     // predicate not supported in JSON files
   };
   response: FixtureResponse;

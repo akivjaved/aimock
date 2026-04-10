@@ -7,6 +7,10 @@ import type {
   ContentWithToolCallsResponse,
   ErrorResponse,
   EmbeddingResponse,
+  ImageResponse,
+  AudioResponse,
+  TranscriptionResponse,
+  VideoResponse,
   SSEChunk,
   ToolCall,
   ChatCompletion,
@@ -72,6 +76,33 @@ export function isErrorResponse(r: FixtureResponse): r is ErrorResponse {
 
 export function isEmbeddingResponse(r: FixtureResponse): r is EmbeddingResponse {
   return "embedding" in r && Array.isArray((r as EmbeddingResponse).embedding);
+}
+
+export function isImageResponse(r: FixtureResponse): r is ImageResponse {
+  return (
+    ("image" in r && r.image != null) ||
+    ("images" in r && Array.isArray((r as ImageResponse).images))
+  );
+}
+
+export function isAudioResponse(r: FixtureResponse): r is AudioResponse {
+  return "audio" in r && typeof (r as AudioResponse).audio === "string";
+}
+
+export function isTranscriptionResponse(r: FixtureResponse): r is TranscriptionResponse {
+  return (
+    "transcription" in r &&
+    (r as TranscriptionResponse).transcription != null &&
+    typeof (r as TranscriptionResponse).transcription === "object"
+  );
+}
+
+export function isVideoResponse(r: FixtureResponse): r is VideoResponse {
+  return (
+    "video" in r &&
+    (r as VideoResponse).video != null &&
+    typeof (r as VideoResponse).video === "object"
+  );
 }
 
 export function buildTextChunks(
