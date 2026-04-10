@@ -5,7 +5,8 @@ import {
   isTranscriptionResponse,
   isVideoResponse,
 } from "../helpers.js";
-import type { FixtureResponse } from "../types.js";
+import { matchFixture } from "../router.js";
+import type { Fixture, ChatCompletionRequest, FixtureResponse } from "../types.js";
 
 describe("multimedia type guards", () => {
   test("isImageResponse detects single image", () => {
@@ -55,5 +56,73 @@ describe("multimedia type guards", () => {
   test("isVideoResponse rejects text response", () => {
     const r: FixtureResponse = { content: "hello" };
     expect(isVideoResponse(r)).toBe(false);
+  });
+});
+
+describe("endpoint filtering in matchFixture", () => {
+  test("fixture with endpoint: image only matches image requests", () => {
+    const fixtures: Fixture[] = [
+      {
+        match: { userMessage: "guitar", endpoint: "image" },
+        response: { image: { url: "img.png" } },
+      },
+    ];
+    const chatReq: ChatCompletionRequest = {
+      model: "gpt-4",
+      messages: [{ role: "user", content: "guitar" }],
+      _endpointType: "chat",
+    };
+    expect(matchFixture(fixtures, chatReq)).toBeNull();
+
+    const imageReq: ChatCompletionRequest = {
+      model: "dall-e-3",
+      messages: [{ role: "user", content: "guitar" }],
+      _endpointType: "image",
+    };
+    expect(matchFixture(fixtures, imageReq)).toBe(fixtures[0]);
+  });
+
+  test("fixture without endpoint matches any request", () => {
+    const fixtures: Fixture[] = [
+      {
+        match: { userMessage: "guitar" },
+        response: { content: "Chat about guitars" },
+      },
+    ];
+    const chatReq: ChatCompletionRequest = {
+      model: "gpt-4",
+      messages: [{ role: "user", content: "guitar" }],
+      _endpointType: "chat",
+    };
+    expect(matchFixture(fixtures, chatReq)).toBe(fixtures[0]);
+
+    const imageReq: ChatCompletionRequest = {
+      model: "dall-e-3",
+      messages: [{ role: "user", content: "guitar" }],
+      _endpointType: "image",
+    };
+    expect(matchFixture(fixtures, imageReq)).toBe(fixtures[0]);
+  });
+
+  test("endpoint filtering works with sequenceIndex", () => {
+    const fixtures: Fixture[] = [
+      {
+        match: { userMessage: "g", endpoint: "image", sequenceIndex: 0 },
+        response: { image: { url: "1.png" } },
+      },
+      {
+        match: { userMessage: "g", endpoint: "image", sequenceIndex: 1 },
+        response: { image: { url: "2.png" } },
+      },
+    ];
+    const counts = new Map<Fixture, number>();
+    const imageReq: ChatCompletionRequest = {
+      model: "dall-e-3",
+      messages: [{ role: "user", content: "g" }],
+      _endpointType: "image",
+    };
+
+    const first = matchFixture(fixtures, imageReq, counts);
+    expect(first).toBe(fixtures[0]);
   });
 });

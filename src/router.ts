@@ -41,6 +41,12 @@ export function matchFixture(
       if (!match.predicate(req)) continue;
     }
 
+    // endpoint — if set, only match fixtures targeting this endpoint type
+    if (match.endpoint !== undefined) {
+      const reqEndpoint = effective._endpointType as string | undefined;
+      if (match.endpoint !== reqEndpoint) continue;
+    }
+
     // userMessage — match against the last user message content
     if (match.userMessage !== undefined) {
       const msg = getLastMessageByRole(effective.messages, "user");
