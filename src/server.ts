@@ -35,6 +35,7 @@ import { handleConverse, handleConverseStream } from "./bedrock-converse.js";
 import { handleEmbeddings } from "./embeddings.js";
 import { handleImages } from "./images.js";
 import { handleSpeech } from "./speech.js";
+import { handleTranscription } from "./transcription.js";
 import { handleOllama, handleOllamaGenerate } from "./ollama.js";
 import { handleCohere } from "./cohere.js";
 import { handleSearch, type SearchFixture } from "./search.js";
@@ -69,6 +70,7 @@ const RERANK_PATH = "/v2/rerank";
 const MODERATIONS_PATH = "/v1/moderations";
 const IMAGES_PATH = "/v1/images/generations";
 const SPEECH_PATH = "/v1/audio/speech";
+const TRANSCRIPTIONS_PATH = "/v1/audio/transcriptions";
 const GEMINI_PREDICT_RE = /^\/v1beta\/models\/([^:]+):predict$/;
 const DEFAULT_CHUNK_SIZE = 20;
 
@@ -976,6 +978,27 @@ export async function createServer(
     if (pathname === SPEECH_PATH && req.method === "POST") {
       readBody(req)
         .then((raw) => handleSpeech(req, res, raw, fixtures, journal, defaults, setCorsHeaders))
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Internal error";
+          if (!res.headersSent) {
+            writeErrorResponse(
+              res,
+              500,
+              JSON.stringify({ error: { message: msg, type: "server_error" } }),
+            );
+          } else if (!res.writableEnded) {
+            res.destroy();
+          }
+        });
+      return;
+    }
+
+    // POST /v1/audio/transcriptions — OpenAI Transcription API
+    if (pathname === TRANSCRIPTIONS_PATH && req.method === "POST") {
+      readBody(req)
+        .then((raw) =>
+          handleTranscription(req, res, raw, fixtures, journal, defaults, setCorsHeaders),
+        )
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : "Internal error";
           if (!res.headersSent) {

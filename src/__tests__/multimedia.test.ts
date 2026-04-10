@@ -86,6 +86,64 @@ describe("image generation", () => {
   });
 });
 
+describe("audio transcription", () => {
+  test("transcription returns text", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { endpoint: "transcription" },
+      response: { transcription: { text: "Welcome", language: "english", duration: 2.5 } },
+    });
+    await mock.start();
+
+    const formData = new FormData();
+    formData.append("file", new Blob(["fake audio"], { type: "audio/wav" }), "test.wav");
+    formData.append("model", "whisper-1");
+
+    const res = await fetch(`${mock.url}/v1/audio/transcriptions`, {
+      method: "POST",
+      headers: { Authorization: "Bearer test" },
+      body: formData,
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.text).toBe("Welcome");
+    await mock.stop();
+  });
+
+  test("verbose transcription includes words and segments", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { endpoint: "transcription" },
+      response: {
+        transcription: {
+          text: "Welcome",
+          language: "english",
+          duration: 2.5,
+          words: [{ word: "Welcome", start: 0.0, end: 0.5 }],
+          segments: [{ id: 0, text: "Welcome", start: 0.0, end: 2.5 }],
+        },
+      },
+    });
+    await mock.start();
+
+    const formData = new FormData();
+    formData.append("file", new Blob(["fake audio"]), "test.wav");
+    formData.append("model", "whisper-1");
+    formData.append("response_format", "verbose_json");
+
+    const res = await fetch(`${mock.url}/v1/audio/transcriptions`, {
+      method: "POST",
+      headers: { Authorization: "Bearer test" },
+      body: formData,
+    });
+    const data = await res.json();
+    expect(data.task).toBe("transcribe");
+    expect(data.words).toHaveLength(1);
+    expect(data.segments).toHaveLength(1);
+    await mock.stop();
+  });
+});
+
 describe("text-to-speech", () => {
   test("TTS returns audio bytes with correct content-type", async () => {
     const mock = new LLMock({ port: 0 });
