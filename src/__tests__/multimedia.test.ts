@@ -277,6 +277,119 @@ describe("convenience methods", () => {
   });
 });
 
+describe("X-Test-Id isolation", () => {
+  test("X-Test-Id works for image endpoint", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "g", endpoint: "image", sequenceIndex: 0 },
+      response: { image: { url: "1.png" } },
+    });
+    mock.addFixture({
+      match: { userMessage: "g", endpoint: "image", sequenceIndex: 1 },
+      response: { image: { url: "2.png" } },
+    });
+    await mock.start();
+
+    const req = (testId: string) =>
+      fetch(`${mock.url}/v1/images/generations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer t",
+          "X-Test-Id": testId,
+        },
+        body: JSON.stringify({ model: "dall-e-3", prompt: "g" }),
+      }).then((r) => r.json());
+
+    const [a, b] = await Promise.all([req("A"), req("B")]);
+    expect(a.data[0].url).toBe("1.png");
+    expect(b.data[0].url).toBe("1.png"); // both get sequenceIndex 0
+
+    await mock.stop();
+  });
+});
+
+describe("endpoint cross-matching prevention", () => {
+  test("image fixture does not match chat request", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "guitar", endpoint: "image" },
+      response: { image: { url: "img.png" } },
+    });
+    mock.addFixture({
+      match: { userMessage: "guitar" },
+      response: { content: "Chat about guitars" },
+    });
+    await mock.start();
+
+    // Chat request should NOT match the image fixture
+    const chat = await fetch(`${mock.url}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: "guitar" }],
+        stream: false,
+      }),
+    });
+    const chatData = await chat.json();
+    expect(chatData.choices[0].message.content).toBe("Chat about guitars");
+
+    // Image request should match the image fixture
+    const img = await fetch(`${mock.url}/v1/images/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+      body: JSON.stringify({ model: "dall-e-3", prompt: "guitar" }),
+    });
+    const imgData = await img.json();
+    expect(imgData.data[0].url).toBe("img.png");
+
+    await mock.stop();
+  });
+});
+
+describe("endpoint backfill on existing handlers", () => {
+  test("fixture with endpoint: chat matches chat completions", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { userMessage: "hello", endpoint: "chat" },
+      response: { content: "Hi there" },
+    });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: "hello" }],
+        stream: false,
+      }),
+    });
+    const data = await res.json();
+    expect(data.choices[0].message.content).toBe("Hi there");
+    await mock.stop();
+  });
+
+  test("fixture with endpoint: embedding matches embeddings", async () => {
+    const mock = new LLMock({ port: 0 });
+    mock.addFixture({
+      match: { inputText: "test input", endpoint: "embedding" },
+      response: { embedding: [0.1, 0.2, 0.3] },
+    });
+    await mock.start();
+
+    const res = await fetch(`${mock.url}/v1/embeddings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: "test input" }),
+    });
+    const data = await res.json();
+    expect(data.data[0].embedding).toEqual([0.1, 0.2, 0.3]);
+    await mock.stop();
+  });
+});
+
 describe("text-to-speech", () => {
   test("TTS returns audio bytes with correct content-type", async () => {
     const mock = new LLMock({ port: 0 });
