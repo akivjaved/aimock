@@ -284,6 +284,7 @@ export class LLMock {
     this.moderationFixtures.length = 0;
     if (this.serverInstance) {
       this.serverInstance.journal.clear();
+      this.serverInstance.videoStates.clear();
     }
     return this;
   }

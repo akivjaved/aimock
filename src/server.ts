@@ -56,6 +56,7 @@ export interface ServerInstance {
   journal: Journal;
   url: string;
   defaults: HandlerDefaults;
+  videoStates: VideoStateMap;
 }
 
 const COMPLETIONS_PATH = "/v1/chat/completions";
@@ -1610,7 +1611,7 @@ export async function createServer(
         }
       }
 
-      resolve({ server, journal, url, defaults });
+      resolve({ server, journal, url, defaults, videoStates });
     });
   });
 }
